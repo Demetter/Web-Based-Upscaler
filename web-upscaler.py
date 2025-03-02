@@ -135,8 +135,14 @@ def upscale_image(image, model, tile_size, alpha_handling, has_alpha, precision,
             device = next(model.parameters()).device
             logger.debug(f"Starting upscale with model on device: {device}")
         
+        # Check if auto tile size is enabled
+        use_auto_tile_size = config['Processing'].get('autotilesize', 'false').lower() == 'true'
+        
         logger.debug(f"CUDA available: {torch.cuda.is_available()}")
-        logger.debug(f"Tile size: {tile_size}, precision: {precision}")
+        logger.debug(f"Using tile size: {tile_size} (auto mode: {use_auto_tile_size})")
+        logger.debug(f"Precision: {precision}")
+        
+        # Rest of your existing function...
         
         def upscale_func(img):
             if img.mode != 'RGB':
@@ -207,27 +213,45 @@ def get_image_metadata(image):
         'pixels': image.width * image.height,
         'megapixels': (image.width * image.height) / 1_000_000
     }
+
+
+# Add this function to your utilities section
+def calculate_optimal_tile_size(image_width, image_height, model_scale):
+
+    # Ideal tile size range - not too small (less efficient) and not too large (VRAM issues)
+    min_tile_size = 128  # Minimum reasonable tile size
+    max_tile_size = 1024  # Maximum reasonable tile size
+    target_tile_size = 384  # Target tile size, same as default
     
-    # Add additional metadata if available
-    if hasattr(image, 'info'):
-        if 'dpi' in image.info:
-            info['dpi'] = image.info['dpi']
-        if 'icc_profile' in image.info:
-            info['has_icc_profile'] = True
-        if 'exif' in image.info:
-            info['has_exif'] = True
+    # Get divisors of width and height
+    def get_divisors(n, min_val, max_val):
+        divisors = []
+        for i in range(min_val, min(max_val + 1, n + 1)):
+            if n % i == 0:
+                divisors.append(i)
+        return divisors
     
-    # Check for alpha channel
-    if image.mode in ('RGBA', 'LA') or (image.mode == 'P' and 'transparency' in image.info):
-        info['has_alpha'] = True
-    else:
-        info['has_alpha'] = False
+    width_divisors = get_divisors(image_width, min_tile_size, max_tile_size)
+    height_divisors = get_divisors(image_height, min_tile_size, max_tile_size)
     
-    # Estimate memory usage
-    estimated_memory = (image.width * image.height * len(image.getbands()) * 8) / (8 * 1024 * 1024)  # in MB
-    info['estimated_memory'] = f"{estimated_memory:.2f} MB"
+    # If no exact divisors found in the range, fall back to a safe default
+    if not width_divisors or not height_divisors:
+        # Calculate the nearest optimal divisor that isn't too small
+        optimal_divisor = min(max(min_tile_size, target_tile_size), max_tile_size)
+        logger.debug(f"No optimal divisors found, using default tile size: {optimal_divisor}")
+        return optimal_divisor
     
-    return info
+    # Find closest divisors to target tile size
+    optimal_width = min(width_divisors, key=lambda x: abs(x - target_tile_size))
+    optimal_height = min(height_divisors, key=lambda x: abs(x - target_tile_size))
+    
+    # Choose the smaller of the two to ensure we don't exceed VRAM limits
+    optimal_tile_size = min(optimal_width, optimal_height)
+    
+    logger.debug(f"Auto tile size calculation: Width divisors: {width_divisors}, Height divisors: {height_divisors}")
+    logger.debug(f"Selected optimal tile size: {optimal_tile_size}")
+    
+    return optimal_tile_size
 
 # Batch processing functions
 def process_batch_queue():
@@ -303,6 +327,7 @@ def process_batch_queue():
                             model=model,
                             input_size=input_size
                         )
+
                         
                         logger.info(f"Processing image {file_info['filename']} with CUDA: {torch.cuda.is_available()}")
                         
@@ -316,6 +341,9 @@ def process_batch_queue():
                             precision=config['Processing'].get('Precision', 'auto').lower(),
                             check_cancelled=lambda: job.get('cancelled', False)
                         )
+
+                        
+
                         
                         # Save the result directly to the user-specified output directory
                         output_filename = f"upscaled_{file_info['filename']}"
