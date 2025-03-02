@@ -11,6 +11,7 @@ A local web interface for upscaling images using AI models.
 - Image resize functionality with various scaling methods
 - Image information viewer
 - Configurable through web interface
+- Batch Upscaling
 
 ## Prerequisites
 
