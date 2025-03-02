@@ -572,17 +572,16 @@ def batch_upscale():
         
         logger.debug(f"Processing batch upscale request: model={model_name}, alpha={alpha_handling}, files={len(files)}, output={output_path}")
         
-        # Create a new batch job ID but don't create a directory for it
+        # Create a new batch job ID
         job_id = str(uuid.uuid4())
         
-        # Process files in memory
+        # Create in-memory file information
         file_info_list = []
         for file in files:
             if file.filename:
-                # Save the file to a temp buffer
-                file_buffer = BytesIO()
-                file.save(file_buffer)
-                file_buffer.seek(0)
+                # Read the file into memory
+                file_data = file.read()
+                file_buffer = BytesIO(file_data)
                 
                 filename = secure_filename(file.filename)
                 
@@ -590,7 +589,7 @@ def batch_upscale():
                     'filename': filename,
                     'buffer': file_buffer,  # Store file in memory
                     'status': 'pending',
-                    'size': len(file_buffer.getvalue())
+                    'size': len(file_data)
                 }
                 file_info_list.append(file_info)
         
@@ -620,13 +619,35 @@ def batch_upscale():
         return jsonify({
             "job_id": job_id,
             "status": "queued",
-            "message": f"Batch job created with {len(file_info_list)} files",
-            "status_url": url_for('batch_status', job_id=job_id, _external=True)
+            "total_files": len(file_info_list),
+            "output_path": output_path
         })
         
     except Exception as e:
         logger.error(f"Error in batch upscale endpoint: {str(e)}")
         logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/batch-delete/<job_id>', methods=['POST'])
+def batch_delete(job_id):
+    try:
+        if job_id not in batch_jobs:
+            return jsonify({"error": "Batch job not found"}), 404
+        
+        job = batch_jobs[job_id]
+        
+        # If job is still processing, cancel it first
+        if job['status'] == 'processing':
+            job['cancelled'] = True
+            job['status'] = 'cancelled'
+        
+        # Remove the job from the dictionary
+        del batch_jobs[job_id]
+        
+        return jsonify({"status": "success", "message": "Job deleted successfully"})
+        
+    except Exception as e:
+        logger.error(f"Error in batch delete endpoint: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/batch-status/<job_id>', methods=['GET'])

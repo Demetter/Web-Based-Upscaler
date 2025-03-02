@@ -1158,20 +1158,41 @@
         }
     }
     
-    function deleteJob(jobId) {
-        if (confirm('Are you sure you want to delete this job from the list? This will not delete the processed files.')) {
-            const jobCard = document.getElementById(`job-${jobId}`);
-            if (jobCard) {
-                jobCard.remove();
-                
-                // Check if jobs list is empty, if so add the message
-                const jobsList = document.getElementById('batch-jobs-list');
-                if (jobsList.children.length === 0) {
-                    jobsList.innerHTML = '<p class="text-gray-500 text-center py-4">No active jobs. Start a new batch job to see it here.</p>';
+async function deleteJob(jobId) {
+    if (confirm('Are you sure you want to delete this job from the list? This will not delete the processed files.')) {
+        try {
+            // Call the server to delete the job
+            const response = await fetch(`/api/batch-delete/${jobId}`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                // Remove the job card from the UI
+                const jobCard = document.getElementById(`job-${jobId}`);
+                if (jobCard) {
+                    jobCard.remove();
+                    
+                    // Check if jobs list is empty, if so add the message
+                    const jobsList = document.getElementById('batch-jobs-list');
+                    if (jobsList.children.length === 0) {
+                        jobsList.innerHTML = '<p class="text-gray-500 text-center py-4">No active jobs. Start a new batch job to see it here.</p>';
+                    }
+                    
+                    // If job details are currently showing for this job, hide them
+                    const batchResultStatus = document.getElementById('batch-status');
+                    if (batchResultStatus && batchResultStatus.dataset.jobId === jobId) {
+                        document.getElementById('batch-result').classList.add('hidden');
+                    }
                 }
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete job');
             }
+        } catch (error) {
+            showError(`Failed to delete job: ${error.message}`);
         }
     }
+}
     
     // Fetch all active jobs on page load
     async function loadActiveJobs() {
