@@ -2,7 +2,8 @@
 
 A local web interface for upscaling images using AI models.
 
-![image](https://github.com/user-attachments/assets/373b2866-a4d8-4972-8caa-2337f19a2424)
+
+![image](https://github.com/user-attachments/assets/cef334a4-46cd-4f90-991a-44b8eb63b1d0)
 
 ## Features
 
