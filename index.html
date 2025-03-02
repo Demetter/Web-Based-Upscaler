@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Upscaler</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #6b7280;
+            border-bottom: 2px solid transparent;
+            margin-right: 4px;
+            position: relative;
+            transition: all 0.2s;
+        }
+        
+        .tab-button:hover {
+            color: #374151;
+        }
+        
+        .tab-button::after {
+            content: '';
+            position: absolute;
+            right: -2px;
+            top: 25%;
+            height: 50%;
+            width: 1px;
+            background-color: #e5e7eb;
+        }
+        
+        .tab-button:last-child::after {
+            display: none;
+        }
+        
+        .tab-button.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+        }
+        
+        .tab-content {
+            padding-top: 1.5rem;
+        }
+
+        .tabs-container {
+            display: flex;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 1.5rem;
+            padding-left: 4px;
+            background-color: white;
+            border-radius: 0.5rem 0.5rem 0 0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .drop-zone {
+            border: 2px dashed #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .drop-zone:hover {
+            border-color: #2563eb;
+        }
+
+        .preview-image {
+            max-height: 16rem;
+            margin: 0 auto;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            border: 1px solid #e5e7eb;
+            background-color: white;
+            color: #374151;
+            font-size: 0.875rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            border: 1px solid #e5e7eb;
+            background-color: white;
+            color: #374151;
+            font-size: 0.875rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background-color: #9ca3af;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #6b7280;
+        }
+
+        .result-container {
+            margin-top: 2rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .thumbnail-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 1rem;
+        }
+
+        .thumbnail {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .job-card {
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .job-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 9999px;
+        }
+        
+        .status-queued {
+            background-color: #e5e7eb;
+            color: #374151;
+        }
+        
+        .status-processing {
+            background-color: #bfdbfe;
+            color: #1e40af;
+        }
+        
+        .status-completed {
+            background-color: #a7f3d0;
+            color: #065f46;
+        }
+        
+        .status-failed {
+            background-color: #fecaca;
+            color: #b91c1c;
+        }
+        
+        .status-cancelled {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            background-color: #f9fafb;
+            margin-bottom: 0.5rem;
+        }
+        
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 0.5rem;
+            background-color: #e5e7eb;
+            border-radius: 0.25rem;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #2563eb;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8">AI Image Upscaler</h1>
+        
+        <!-- Tab Navigation -->
+        <div class="tabs-container">
+            <button onclick="switchTab('upscale')" class="tab-button active" data-tab="upscale">
+                Upscale
+            </button>
+            <button onclick="switchTab('batch')" class="tab-button" data-tab="batch">
+                Batch Upscale
+            </button>
+            <button onclick="switchTab('resize')" class="tab-button" data-tab="resize">
+                Resize
+            </button>
+            <button onclick="switchTab('info')" class="tab-button" data-tab="info">
+                Image Info
+            </button>
+            <button onclick="switchTab('config')" class="tab-button" data-tab="config">
+                Configuration
+            </button>
+        </div>
+
+        <!-- Upscale Tab -->
+        <div id="upscale-tab" class="tab-content">
+            <form id="upscale-form" class="space-y-4">
+                <div class="drop-zone">
+                    <input type="file" id="upscale-image" accept="image/*" class="hidden" />
+                    <label for="upscale-image" class="cursor-pointer">
+                        <div id="upscale-preview" class="mb-4">
+                            <p class="text-gray-500">Drop image here or click to select</p>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">Model</label>
+                        <select id="model-select" class="form-select">
+                            <!-- Populated by JavaScript -->
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Alpha Handling</label>
+                        <select id="alpha-handling" class="form-select">
+                            <option value="upscale">Upscale</option>
+                            <option value="resize">Resize</option>
+                            <option value="discard">Discard</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full btn btn-primary">
+                    Upscale Image
+                </button>
+            </form>
+
+            <div id="upscale-result" class="result-container hidden">
+                <h3 class="text-lg font-medium mb-4">Result</h3>
+                <img id="upscale-result-image" class="max-w-full rounded-lg" />
+                <a id="upscale-download" class="btn btn-primary mt-4 inline-block">
+                    Download Result
+                </a>
+            </div>
+        </div>
+        
+        <!-- Batch Upscale Tab -->
+        <div id="batch-tab" class="tab-content hidden">
+            <div class="flex flex-col md:flex-row gap-4">
+                <!-- Left panel: Job form -->
+                <div class="w-full md:w-2/5">
+                    <form id="batch-form" class="bg-white rounded-lg shadow p-4">
+                        <h3 class="text-lg font-medium mb-4 text-blue-600 border-b pb-2">Create New Batch Job</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="drop-zone">
+                                <input type="file" id="batch-images" accept="image/*" multiple class="hidden" />
+                                <label for="batch-images" class="cursor-pointer">
+                                    <div id="batch-preview" class="mb-4">
+                                        <p class="text-gray-500">Drop multiple images here or click to select</p>
+                                    </div>
+                                    <div id="batch-count" class="text-center hidden">
+                                        <p class="text-lg font-medium text-green-600">0 images selected</p>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="form-label">Model</label>
+                                    <select id="batch-model-select" class="form-select">
+                                        <!-- Populated by JavaScript -->
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="form-label">Alpha Handling</label>
+                                    <select id="batch-alpha-handling" class="form-select">
+                                        <option value="upscale">Upscale</option>
+                                        <option value="resize">Resize</option>
+                                        <option value="discard">Discard</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="form-label">Output Directory</label>
+                                <div class="flex">
+                                    <input type="text" id="output-path" class="form-input flex-grow" readonly
+                                           placeholder="Click 'Browse' to select output directory" />
+                                    <button type="button" id="browse-output" class="btn btn-secondary ml-2">
+                                        Browse
+                                    </button>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Where to save the upscaled images on the server</p>
+                            </div>
+
+                            <button type="submit" class="w-full btn btn-primary">
+                                Start Batch Upscale
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Right panel: Active jobs and details -->
+                <div class="w-full md:w-3/5">
+                    <div id="batch-active-jobs" class="bg-white rounded-lg shadow p-4 mb-4">
+                        <h3 class="text-lg font-medium mb-4 text-blue-600 border-b pb-2">Active Batch Jobs</h3>
+                        <div id="batch-jobs-list" class="space-y-4 max-h-64 overflow-y-auto">
+                            <p class="text-gray-500 text-center py-4">No active jobs. Start a new batch job to see it here.</p>
+                            <!-- Job items will be populated here -->
+                        </div>
+                    </div>
+
+                    <div id="batch-result" class="bg-white rounded-lg shadow p-4 hidden">
+                        <h3 class="text-lg font-medium mb-4 text-blue-600 border-b pb-2">Batch Job Details</h3>
+                        
+                        <!-- Job Status and Progress -->
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <div class="text-sm font-medium text-gray-700">Status</div>
+                                <div id="batch-status" class="text-lg font-semibold"></div>
+                            </div>
+                            <div>
+                                <div class="text-sm font-medium text-gray-700">Progress</div>
+                                <div id="batch-progress" class="text-lg font-semibold">0%</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Progress Bar -->
+                        <div class="mb-4">
+                            <div class="progress-bar">
+                                <div id="batch-progress-bar" class="progress-bar-fill" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Processing Info -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <div class="text-sm font-medium text-gray-700">Current File</div>
+                                <div id="batch-current-file" class="text-sm truncate">-</div>
+                            </div>
+                            <div>
+                                <div class="text-sm font-medium text-gray-700">Output Directory</div>
+                                <div id="batch-output-path" class="text-sm truncate">-</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Summary Stats -->
+                        <div class="mb-4">
+                            <h4 class="text-md font-medium mb-2 text-gray-700">Processing Summary</h4>
+                            <div class="grid grid-cols-3 gap-4 text-center">
+                                <div class="p-3 bg-blue-100 rounded-lg">
+                                    <p class="text-sm text-blue-800">Total</p>
+                                    <p id="batch-total-count" class="text-xl font-medium text-blue-800">0</p>
+                                </div>
+                                <div class="p-3 bg-green-100 rounded-lg">
+                                    <p class="text-sm text-green-800">Completed</p>
+                                    <p id="batch-completed-count" class="text-xl font-medium text-green-800">0</p>
+                                </div>
+                                <div class="p-3 bg-red-100 rounded-lg">
+                                    <p class="text-sm text-red-800">Failed</p>
+                                    <p id="batch-failed-count" class="text-xl font-medium text-red-800">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Time Info -->
+                        <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
+                            <div>
+                                <span class="font-medium text-gray-700">Start Time:</span>
+                                <span id="batch-start-time">-</span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-700">End Time:</span>
+                                <span id="batch-end-time">-</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Files List (collapsible) -->
+                        <div class="mb-4">
+                            <button id="toggle-files-list" class="flex items-center justify-between w-full p-2 bg-gray-100 hover:bg-gray-200 rounded-md">
+                                <span class="font-medium">Show File Details</span>
+                                <svg id="files-arrow" class="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div id="files-list-content" class="hidden mt-2 max-h-60 overflow-y-auto">
+                                <div id="batch-files-list" class="space-y-2">
+                                    <!-- File status items will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Actions -->
+                        <div class="flex justify-between">
+                            <button id="back-to-jobs" class="btn bg-gray-200 hover:bg-gray-300 text-gray-800">
+                                Back to Jobs List
+                            </button>
+                            <button id="open-output-folder" class="btn bg-green-600 hover:bg-green-700 text-white">
+                                Open Output Folder
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resize Tab -->
+        <div id="resize-tab" class="tab-content hidden">
+            <form id="resize-form" class="space-y-4">
+                <div class="drop-zone">
+                    <input type="file" id="resize-image" accept="image/*" class="hidden" />
+                    <label for="resize-image" class="cursor-pointer">
+                        <div id="resize-preview" class="mb-4">
+                            <p class="text-gray-500">Drop image here or click to select</p>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">Scale Factor</label>
+                        <input type="number" id="scale-factor" step="0.1" min="0.1" max="10" value="2.0" 
+                               class="form-input" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Method</label>
+                        <select id="resize-method" class="form-select">
+                            <!-- Populated by JavaScript -->
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full btn btn-primary">
+                    Resize Image
+                </button>
+            </form>
+
+            <div id="resize-result" class="result-container hidden">
+                <h3 class="text-lg font-medium mb-4">Result</h3>
+                <img id="resize-result-image" class="max-w-full rounded-lg" />
+                <a id="resize-download" class="btn btn-primary mt-4 inline-block">
+                    Download Result
+                </a>
+            </div>
+        </div>
+
+        <!-- Info Tab -->
+        <div id="info-tab" class="tab-content hidden">
+            <form id="info-form" class="space-y-4">
+                <div class="drop-zone">
+                    <input type="file" id="info-image" accept="image/*" class="hidden" />
+                    <label for="info-image" class="cursor-pointer">
+                        <div id="info-preview" class="mb-4">
+                            <p class="text-gray-500">Drop image here or click to select</p>
+                        </div>
+                    </label>
+                </div>
+
+                <button type="submit" class="w-full btn btn-primary">
+                    Get Image Info
+                </button>
+            </form>
+
+            <div id="info-result" class="result-container hidden">
+                <h3 class="text-lg font-medium mb-4">Image Information</h3>
+                <pre id="info-text" class="bg-gray-800 text-white p-4 rounded-lg overflow-x-auto"></pre>
+            </div>
+        </div>
+
+        <!-- Config Tab -->
+        <div id="config-tab" class="tab-content hidden">
+            <form id="config-form" class="space-y-6">
+                <!-- Populated by JavaScript -->
+            </form>
+
+            <div class="mt-4 flex justify-end space-x-4">
+                <button type="button" onclick="resetConfig()" 
+                        class="btn btn-secondary">
+                    Reset
+                </button>
+                <button type="submit" form="config-form"
+                        class="btn btn-primary">
+                    Save Configuration
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // Utility Functions
+    function showLoading(element) {
+        element.classList.add('opacity-50', 'pointer-events-none');
+        element.innerHTML = '<span class="animate-spin">⏳</span> Processing...';
+    }
+
+    function hideLoading(element, originalText) {
+        element.classList.remove('opacity-50', 'pointer-events-none');
+        element.innerHTML = originalText;
+    }
+
+    function showError(message) {
+        alert(message); // Could be replaced with a more sophisticated error display
+    }
+
+    // Tab Switching
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.add('hidden');
+        });
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.classList.remove('active');
+        });
+        
+        document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    }
+
+    // Image Preview Handling
+    function setupImagePreview(inputId, previewId) {
+        const input = document.getElementById(inputId);
+        const preview = document.getElementById(previewId);
+
+        input.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `
+                        <img src="${e.target.result}" class="max-h-64 mx-auto" />
+                        <p class="mt-2 text-sm text-gray-500">${file.name}</p>
+                    `;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    // Batch Image Upload Handling
+    function setupBatchImagePreview() {
+        const input = document.getElementById('batch-images');
+        const preview = document.getElementById('batch-preview');
+        const countDiv = document.getElementById('batch-count');
+        
+        input.addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                // Update the preview text with file count
+                preview.innerHTML = `<p class="text-green-500 font-medium">${files.length} image${files.length === 1 ? '' : 's'} selected</p>`;
+                
+                // Generate thumbnail gallery for a sample of images (max 8)
+                const thumbnailContainer = document.createElement('div');
+                thumbnailContainer.className = 'thumbnail-container';
+                
+                const sampleSize = Math.min(files.length, 8);
+                for (let i = 0; i < sampleSize; i++) {
+                    const file = files[i];
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'thumbnail';
+                        thumbnailContainer.appendChild(img);
+                    };
+                    
+                    reader.readAsDataURL(file);
+                }
+                
+                preview.appendChild(thumbnailContainer);
+                
+                // Display file count
+                countDiv.classList.remove('hidden');
+                countDiv.querySelector('p').textContent = `${files.length} image${files.length === 1 ? '' : 's'} selected`;
+                
+                if (files.length > 8) {
+                    const more = document.createElement('p');
+                    more.className = 'text-sm text-gray-500 mt-2';
+                    more.textContent = `... and ${files.length - 8} more`;
+                    preview.appendChild(more);
+                }
+            }
+        });
+    }
+    
+    // Model List Population
+    async function loadModels() {
+        try {
+            const response = await fetch('/api/models');
+            const models = await response.json();
+            
+            // Populate the single upscale select
+            const select = document.getElementById('model-select');
+            select.innerHTML = models.map(model => 
+                `<option value="${model}">${model}</option>`
+            ).join('');
+            
+            // Populate the batch upscale select
+            const batchSelect = document.getElementById('batch-model-select');
+            batchSelect.innerHTML = models.map(model => 
+                `<option value="${model}">${model}</option>`
+            ).join('');
+        } catch (error) {
+            showError('Failed to load models');
+        }
+    }
+
+    async function loadResizeMethods() {
+        try {
+            const response = await fetch('/api/resize/methods');
+            const data = await response.json();
+            
+            // Update method dropdown
+            const select = document.getElementById('resize-method');
+            select.innerHTML = data.methods.map(method => 
+                `<option value="${method}">${method}</option>`
+            ).join('');
+            
+            // Update scale factor input limits
+            const scaleInput = document.getElementById('scale-factor');
+            scaleInput.min = data.scale_limits.min;
+            scaleInput.max = data.scale_limits.max;
+            scaleInput.step = '0.1';
+            scaleInput.title = `Value between ${data.scale_limits.min} and ${data.scale_limits.max}`;
+        } catch (error) {
+            showError('Failed to load resize methods');
+        }
+    }
+
+    // Configuration Handling
+    async function loadConfig() {
+        try {
+            const response = await fetch('/api/config');
+            const config = await response.json();
+            
+            const form = document.getElementById('config-form');
+            form.innerHTML = '';
+
+            for (const [section, values] of Object.entries(config)) {
+                const sectionDiv = document.createElement('div');
+                sectionDiv.className = 'border rounded-lg p-4 mb-4';
+                sectionDiv.innerHTML = `
+                    <h3 class="text-lg font-medium mb-4">${section}</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        ${Object.entries(values).map(([key, value]) => `
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">${key}</label>
+                                <input type="text" 
+                                       name="${section}.${key}" 
+                                       value="${value}"
+                                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" />
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                form.appendChild(sectionDiv);
+            }
+        } catch (error) {
+            showError('Failed to load configuration');
+        }
+    }
+
+    async function saveConfig(event) {
+        event.preventDefault();
+        const form = document.getElementById('config-form');
+        const config = {};
+
+        // Gather all inputs
+        form.querySelectorAll('input').forEach(input => {
+            const [section, key] = input.name.split('.');
+            if (!config[section]) config[section] = {};
+            config[section][key] = input.value;
+        });
+
+        try {
+            const response = await fetch('/api/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            });
+
+            if (response.ok) {
+                alert('Configuration saved successfully');
+                window.location.reload();
+            } else {
+                throw new Error('Failed to save configuration');
+            }
+        } catch (error) {
+            showError('Failed to save configuration');
+        }
+    }
+
+    function resetConfig() {
+        loadConfig();
+    }
+
+    // Upscale Handling
+    async function handleUpscale(event) {
+        event.preventDefault();
+        const button = event.submitter;
+        const originalText = button.innerHTML;
+        showLoading(button);
+
+        const formData = new FormData();
+        const imageFile = document.getElementById('upscale-image').files[0];
+        const model = document.getElementById('model-select').value;
+        const alphaHandling = document.getElementById('alpha-handling').value;
+
+        formData.append('image', imageFile);
+        formData.append('model', model);
+        formData.append('alpha_handling', alphaHandling);
+
+        try {
+            const response = await fetch('/api/upscale', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                document.getElementById('upscale-result-image').src = url;
+                document.getElementById('upscale-download').href = url;
+                document.getElementById('upscale-result').classList.remove('hidden');
+            } else {
+                throw new Error('Upscale failed');
+            }
+        } catch (error) {
+            showError('Failed to upscale image');
+        } finally {
+            hideLoading(button, originalText);
+        }
+    }
+
+    // Batch Upscale Handling
+    const activeJobs = new Map(); // Store active job IDs and their status check intervals
+    
+    async function handleBatchUpscale(event) {
+        event.preventDefault();
+        const button = event.submitter;
+        const originalText = button.innerHTML;
+        
+        const files = document.getElementById('batch-images').files;
+        if (files.length === 0) {
+            showError('Please select at least one image');
+            return;
+        }
+        
+        const outputPath = document.getElementById('output-path').value;
+        if (!outputPath) {
+            const proceed = confirm("No output directory selected. Files will be saved to the default directory. Continue?");
+            if (!proceed) return;
+        }
+        
+        showLoading(button);
+        
+        const formData = new FormData();
+        const model = document.getElementById('batch-model-select').value;
+        const alphaHandling = document.getElementById('batch-alpha-handling').value;
+        
+        for (let i = 0; i < files.length; i++) {
+            formData.append('images[]', files[i]);
+        }
+        
+        formData.append('model', model);
+        formData.append('alpha_handling', alphaHandling);
+        
+        if (outputPath) {
+            formData.append('output_path', outputPath);
+        }
+        
+        try {
+            const response = await fetch('/api/batch-upscale', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                const jobId = result.job_id;
+                
+                // Make sure jobs list is visible and not empty
+                const jobsList = document.getElementById('batch-jobs-list');
+                // If jobs list has "No active jobs" message, remove it
+                if (jobsList.querySelector('p')) {
+                    jobsList.innerHTML = '';
+                }
+                
+                // Add job to active jobs list with the actual file count from files object
+                createJobCard(jobId, files.length, outputPath);
+                
+                // Start monitoring the job status
+                monitorJobStatus(jobId);
+                
+                // Reset the form
+                document.getElementById('batch-form').reset();
+                document.getElementById('batch-preview').innerHTML = '<p class="text-gray-500">Drop multiple images here or click to select</p>';
+                document.getElementById('batch-count').classList.add('hidden');
+                
+                // No success notification - removed as requested
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Batch upscale failed');
+            }
+        } catch (error) {
+            showError(`Failed to start batch upscale: ${error.message}`);
+        } finally {
+            hideLoading(button, originalText);
+        }
+    }
+    
+    function createJobCard(jobId, fileCount, outputPath = 'Default') {
+        const jobsList = document.getElementById('batch-jobs-list');
+        
+        // Create job card
+        const jobCard = document.createElement('div');
+        jobCard.id = `job-${jobId}`;
+        jobCard.className = 'job-card p-4 bg-white rounded-lg shadow border border-gray-200';
+        jobCard.innerHTML = `
+            <div class="flex justify-between items-center mb-2">
+                <h4 class="font-medium">${jobId.substring(0, 8)}...</h4>
+                <span class="status-badge status-processing">Processing</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-2">
+                <div>Files: <span class="font-medium">${fileCount}</span></div>
+                <div>Completed: <span class="job-completed">0</span>/<span class="job-total">${fileCount}</span></div>
+            </div>
+            <div class="flex items-center space-x-2 mb-2">
+                <div class="progress-bar flex-grow">
+                    <div class="progress-bar-fill" style="width: 0%"></div>
+                </div>
+                <span class="text-sm font-medium progress-text">0%</span>
+            </div>
+            <div class="text-xs text-gray-500 truncate mb-2" title="${outputPath}">
+                Output: ${outputPath}
+            </div>
+            <div class="flex justify-between">
+                <button class="text-sm text-blue-600 hover:text-blue-800" onclick="viewJobDetails('${jobId}')">
+                    View Details
+                </button>
+                <button class="text-sm text-red-600 hover:text-red-800 cancel-btn" onclick="cancelJob('${jobId}')">
+                    Cancel
+                </button>
+            </div>
+        `;
+        
+        // If jobs list has "No active jobs" message, remove it
+        if (jobsList.querySelector('p')) {
+            jobsList.innerHTML = '';
+        }
+        
+        jobsList.prepend(jobCard);
+        return jobCard;
+    }
+    
+    function formatTimestamp(timestamp) {
+        if (!timestamp) return '-';
+        return new Date(timestamp * 1000).toLocaleString();
+    }
+    
+    function updateJobCard(jobId, status, progress, completedCount = 0, totalCount = 0) {
+        const jobCard = document.getElementById(`job-${jobId}`);
+        if (!jobCard) return;
+        
+        const statusBadge = jobCard.querySelector('.status-badge');
+        const progressBar = jobCard.querySelector('.progress-bar-fill');
+        const progressText = jobCard.querySelector('.progress-text');
+        const completedEl = jobCard.querySelector('.job-completed');
+        const totalEl = jobCard.querySelector('.job-total');
+        const cancelBtn = jobCard.querySelector('.cancel-btn');
+        
+        // Update status badge
+        statusBadge.className = 'status-badge';
+        statusBadge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        
+        // Add status-specific class
+        statusBadge.classList.add(`status-${status.toLowerCase()}`);
+        
+        // Add animation for processing
+        if (status.toLowerCase() === 'processing') {
+            statusBadge.classList.add('pulse-animation');
+        } else {
+            statusBadge.classList.remove('pulse-animation');
+        }
+        
+        // Update progress
+        progressBar.style.width = `${progress}%`;
+        progressText.textContent = `${Math.round(progress)}%`;
+        
+        // Update counts
+        if (completedCount && totalCount) {
+            completedEl.textContent = completedCount;
+            totalEl.textContent = totalCount;
+        }
+        
+        // If job is completed or failed, update buttons
+        if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+            if (cancelBtn) {
+                const parent = cancelBtn.parentNode;
+                cancelBtn.remove();
+                
+                // Add "Delete Job" button if it doesn't exist
+                if (!parent.querySelector('.delete-btn')) {
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'text-sm text-gray-600 hover:text-gray-800 delete-btn';
+                    deleteBtn.textContent = 'Delete Job';
+                    deleteBtn.onclick = function() { deleteJob(jobId); };
+                    parent.appendChild(deleteBtn);
+                }
+            }
+        }
+    }
+    
+    async function monitorJobStatus(jobId) {
+        // Create an interval to check the job status
+        const intervalId = setInterval(async () => {
+            try {
+                const response = await fetch(`/api/batch-status/${jobId}`);
+                if (response.ok) {
+                    const jobStatus = await response.json();
+                    
+                    // Update the job card
+                    updateJobCard(
+                        jobId, 
+                        jobStatus.status, 
+                        jobStatus.progress,
+                        jobStatus.completed_count,
+                        jobStatus.total_files
+                    );
+                    
+                    // If job is no longer active, clear the interval
+                    if (['completed', 'failed', 'cancelled'].includes(jobStatus.status)) {
+                        clearInterval(intervalId);
+                        activeJobs.delete(jobId);
+                    }
+                    
+                    // If this job is currently being viewed in detail, update the details view
+                    const batchResultStatus = document.getElementById('batch-status');
+                    if (batchResultStatus && batchResultStatus.dataset.jobId === jobId) {
+                        updateJobDetails(jobStatus);
+                    }
+                } else {
+                    // Handle API errors
+                    console.error('Failed to fetch job status');
+                    clearInterval(intervalId);
+                }
+            } catch (error) {
+                console.error('Error checking job status:', error);
+                clearInterval(intervalId);
+            }
+        }, 1000); // Check every second for more responsive updates
+        
+        // Store the interval ID so we can clear it later
+        activeJobs.set(jobId, intervalId);
+    }
+    
+    function viewJobDetails(jobId) {
+        // Switch to the batch tab if not already there
+        switchTab('batch');
+        
+        // Show the batch result container
+        const batchResult = document.getElementById('batch-result');
+        batchResult.classList.remove('hidden');
+        
+        // Set the current job ID in the status element for reference
+        document.getElementById('batch-status').dataset.jobId = jobId;
+        
+        // Fetch and display the job details
+        fetch(`/api/batch-status/${jobId}`)
+            .then(response => response.json())
+            .then(jobStatus => {
+                updateJobDetails(jobStatus);
+            })
+            .catch(error => {
+                console.error('Error fetching job details:', error);
+                showError('Failed to load job details');
+            });
+    }
+    
+    function updateJobDetails(jobStatus) {
+        // Apply status with appropriate styling
+        const statusElement = document.getElementById('batch-status');
+        const statusText = jobStatus.status.charAt(0).toUpperCase() + jobStatus.status.slice(1);
+        statusElement.textContent = statusText;
+        
+        // Apply status classes
+        statusElement.className = 'text-lg font-semibold';
+        switch(jobStatus.status.toLowerCase()) {
+            case 'processing':
+                statusElement.classList.add('text-blue-600', 'pulse-animation');
+                break;
+            case 'completed':
+                statusElement.classList.add('text-green-600');
+                break;
+            case 'failed':
+                statusElement.classList.add('text-red-600');
+                break;
+            case 'cancelled':
+                statusElement.classList.add('text-yellow-600');
+                break;
+            default:
+                statusElement.classList.add('text-gray-600');
+        }
+        
+        // Update progress
+        const progress = Math.round(jobStatus.progress);
+        document.getElementById('batch-progress').textContent = `${progress}%`;
+        document.getElementById('batch-progress-bar').style.width = `${progress}%`;
+        
+        // Update current file
+        if (jobStatus.current_file) {
+            document.getElementById('batch-current-file').textContent = 
+                `File ${jobStatus.current_file_index || '?'} of ${jobStatus.total_files}: ${jobStatus.current_file}`;
+        } else {
+            document.getElementById('batch-current-file').textContent = '-';
+        }
+        
+        // Update output path
+        const outputPath = jobStatus.final_output_path || jobStatus.output_path;
+        if (outputPath) {
+            document.getElementById('batch-output-path').textContent = outputPath;
+        }
+        
+        // Update summary counts
+        document.getElementById('batch-total-count').textContent = jobStatus.total_files || 0;
+        document.getElementById('batch-completed-count').textContent = jobStatus.completed_count || 0;
+        document.getElementById('batch-failed-count').textContent = jobStatus.failed_count || 0;
+        
+        // Update timestamps
+        document.getElementById('batch-start-time').textContent = formatTimestamp(jobStatus.start_time);
+        document.getElementById('batch-end-time').textContent = formatTimestamp(jobStatus.end_time);
+        
+        // Update files list
+        const filesList = document.getElementById('batch-files-list');
+        filesList.innerHTML = '';
+        
+        if (jobStatus.files && jobStatus.files.length > 0) {
+            jobStatus.files.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                
+                // Status badge
+                let statusClass = '';
+                switch(file.status) {
+                    case 'pending': statusClass = 'status-queued'; break;
+                    case 'processing': statusClass = 'status-processing pulse-animation'; break;
+                    case 'completed': statusClass = 'status-completed'; break;
+                    case 'failed': statusClass = 'status-failed'; break;
+                }
+                
+                fileItem.innerHTML = `
+                    <div class="flex-grow truncate" title="${file.filename}">
+                        ${file.filename}
+                    </div>
+                    <span class="status-badge ${statusClass}">${file.status}</span>
+                `;
+                filesList.appendChild(fileItem);
+                
+                // If file failed, add the error message
+                if (file.status === 'failed' && file.error) {
+                    const errorMsg = document.createElement('div');
+                    errorMsg.className = 'text-xs text-red-600 mt-1 p-2 bg-red-50 rounded';
+                    errorMsg.textContent = file.error;
+                    filesList.appendChild(errorMsg);
+                }
+            });
+        } else {
+            filesList.innerHTML = '<div class="text-gray-500 text-center py-2">No files information available</div>';
+        }
+        
+        // Show/hide "Open Output Folder" button based on job status
+        const openFolderBtn = document.getElementById('open-output-folder');
+        if (['completed', 'failed', 'cancelled'].includes(jobStatus.status)) {
+            openFolderBtn.classList.remove('hidden');
+        } else {
+            openFolderBtn.classList.add('hidden');
+        }
+    }
+    
+    async function cancelJob(jobId) {
+        if (confirm('Are you sure you want to cancel this job?')) {
+            try {
+                const response = await fetch(`/api/batch-cancel/${jobId}`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    // Update job card to show cancelled status
+                    updateJobCard(jobId, 'cancelled', 100);
+                    
+                    // Stop monitoring the job
+                    clearInterval(activeJobs.get(jobId));
+                    activeJobs.delete(jobId);
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to cancel job');
+                }
+            } catch (error) {
+                showError(`Failed to cancel job: ${error.message}`);
+            }
+        }
+    }
+    
+    function deleteJob(jobId) {
+        if (confirm('Are you sure you want to delete this job from the list? This will not delete the processed files.')) {
+            const jobCard = document.getElementById(`job-${jobId}`);
+            if (jobCard) {
+                jobCard.remove();
+                
+                // Check if jobs list is empty, if so add the message
+                const jobsList = document.getElementById('batch-jobs-list');
+                if (jobsList.children.length === 0) {
+                    jobsList.innerHTML = '<p class="text-gray-500 text-center py-4">No active jobs. Start a new batch job to see it here.</p>';
+                }
+            }
+        }
+    }
+    
+    // Fetch all active jobs on page load
+    async function loadActiveJobs() {
+        try {
+            const response = await fetch('/api/batch-list');
+            if (response.ok) {
+                const jobs = await response.json();
+                
+                if (jobs && jobs.length > 0) {
+                    // Clear the "no jobs" message
+                    document.getElementById('batch-jobs-list').innerHTML = '';
+                    
+                    jobs.forEach(job => {
+                        createJobCard(job.job_id, job.total_files, job.output_path);
+                        
+                        updateJobCard(
+                            job.job_id, 
+                            job.status, 
+                            job.progress,
+                            job.completed_count,
+                            job.total_files
+                        );
+                        
+                        // Always start monitoring if job isn't completed/failed
+                        if (['queued', 'processing'].includes(job.status)) {
+                            monitorJobStatus(job.job_id);
+                        }
+                    });
+                }
+            } else {
+                console.error('Failed to load active jobs');
+            }
+        } catch (error) {
+            console.error('Error loading active jobs:', error);
+        }
+    }
+
+    // Resize Handling
+    async function handleResize(event) {
+        event.preventDefault();
+        const button = event.submitter;
+        const originalText = button.innerHTML;
+        showLoading(button);
+
+        const formData = new FormData();
+        const imageFile = document.getElementById('resize-image').files[0];
+        const scaleFactor = document.getElementById('scale-factor').value;
+        const method = document.getElementById('resize-method').value;
+
+        formData.append('image', imageFile);
+        formData.append('scale_factor', scaleFactor);
+        formData.append('method', method);
+
+        try {
+            const response = await fetch('/api/resize', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                document.getElementById('resize-result-image').src = url;
+                document.getElementById('resize-download').href = url;
+                document.getElementById('resize-result').classList.remove('hidden');
+            } else {
+                throw new Error('Resize failed');
+            }
+        } catch (error) {
+            showError('Failed to resize image');
+        } finally {
+            hideLoading(button, originalText);
+        }
+    }
+
+    // Image Info Handling
+    async function handleInfo(event) {
+        event.preventDefault();
+        const button = event.submitter;
+        const originalText = button.innerHTML;
+        showLoading(button);
+
+        const formData = new FormData();
+        const imageFile = document.getElementById('info-image').files[0];
+        formData.append('image', imageFile);
+
+        try {
+            const response = await fetch('/api/info', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const info = await response.json();
+                document.getElementById('info-text').textContent = JSON.stringify(info, null, 2);
+                document.getElementById('info-result').classList.remove('hidden');
+            } else {
+                throw new Error('Failed to get image info');
+            }
+        } catch (error) {
+            showError('Failed to get image information');
+        } finally {
+            hideLoading(button, originalText);
+        }
+    }
+
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        loadModels();
+        loadConfig();
+        loadResizeMethods();
+        loadActiveJobs();
+        
+        setupImagePreview('upscale-image', 'upscale-preview');
+        setupImagePreview('resize-image', 'resize-preview');
+        setupImagePreview('info-image', 'info-preview');
+        setupBatchImagePreview();
+        
+        document.getElementById('upscale-form').addEventListener('submit', handleUpscale);
+        document.getElementById('batch-form').addEventListener('submit', handleBatchUpscale);
+        document.getElementById('resize-form').addEventListener('submit', handleResize);
+        document.getElementById('info-form').addEventListener('submit', handleInfo);
+        document.getElementById('config-form').addEventListener('submit', saveConfig);
+        
+        // Set up batch cancellation event listeners
+        document.getElementById('browse-output').addEventListener('click', async function() {
+            try {
+                const response = await fetch('/api/select-output-path');
+                const data = await response.json();
+                
+                if (data.path) {
+                    document.getElementById('output-path').value = data.path;
+                } else if (data.error) {
+                    showError(`Failed to select output path: ${data.error}`);
+                }
+            } catch (error) {
+                showError(`Error: ${error.message}`);
+            }
+        });
+        
+        // File list toggle
+        document.getElementById('toggle-files-list').addEventListener('click', function() {
+            const content = document.getElementById('files-list-content');
+            const arrow = document.getElementById('files-arrow');
+            
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                arrow.classList.add('rotate-180');
+            } else {
+                content.classList.add('hidden');
+                arrow.classList.remove('rotate-180');
+            }
+        });
+        
+        // Back to jobs list button
+        document.getElementById('back-to-jobs').addEventListener('click', function() {
+            document.getElementById('batch-result').classList.add('hidden');
+        });
+        
+        // Open output folder button
+        document.getElementById('open-output-folder').addEventListener('click', function() {
+            const outputPath = document.getElementById('batch-output-path').textContent;
+            if (outputPath && outputPath !== '-') {
+                alert(`The files are saved on the server at: ${outputPath}\n\nYou'll need to access this folder on the server directly.`);
+            } else {
+                alert("No output directory is specified for this job.");
+            }
+        });
+        
+        // Add drag and drop support for batch uploads
+        const batchDropZone = document.querySelector('#batch-tab .drop-zone');
+        
+        batchDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            batchDropZone.classList.add('border-blue-500');
+        });
+        
+        batchDropZone.addEventListener('dragleave', () => {
+            batchDropZone.classList.remove('border-blue-500');
+        });
+        
+        batchDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            batchDropZone.classList.remove('border-blue-500');
+            
+            if (e.dataTransfer.files.length > 0) {
+                document.getElementById('batch-images').files = e.dataTransfer.files;
+                const event = new Event('change');
+                document.getElementById('batch-images').dispatchEvent(event);
+            }
+        });
+    });
+</script>
+</body>
+</html>
